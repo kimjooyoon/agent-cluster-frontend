@@ -12,6 +12,8 @@ import 'package:agent_cluster_frontend/contracts_client/list_work_items.dart';
 void main() {
   test('listWorkItemsQueryName matches the wire identifier the backend expects',
       () {
-    expect(listWorkItemsQueryName, equals('workItems'));
+    // This is the one place the test contract requires the literal — the
+    // whole point is to break here if contracts ever renames the wire.
+    expect(listWorkItemsQueryName, equals('workItems')); // wirelint:ignore
   });
 }

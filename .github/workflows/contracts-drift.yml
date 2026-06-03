@@ -1,0 +1,61 @@
+name: contracts-drift
+
+# Merge-blocking gate for contracts→frontend code generation drift.
+#
+# Steps:
+#   1. Clone agent-cluster-contracts at main.
+#   2. Build its gen-dart-client tool.
+#   3. Run that tool, writing to a temp dir.
+#   4. diff -r the temp dir against frontend/lib/contracts_client/.
+#
+# Any disagreement fails the job. This is how we enforce constraint C-001
+# (no repo re-declares contract vocabulary) for Dart consumers.
+#
+# Files in lib/contracts_client/ that are not produced by the generator
+# (README.md) are excluded from the diff via --exclude.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+        with:
+          path: frontend
+
+      - name: Checkout contracts at main
+        uses: actions/checkout@v4
+        with:
+          repository: kimjooyoon/agent-cluster-contracts
+          path: contracts
+          ref: main
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Build gen-dart-client
+        working-directory: contracts
+        run: go build -o ../bin/gen-dart-client ./tools/gen-dart-client
+
+      - name: Regenerate Dart client into a temp directory
+        run: |
+          mkdir -p /tmp/regen
+          ./bin/gen-dart-client --ir-dir contracts/ir/domain --out-dir /tmp/regen
+
+      - name: Diff committed vs regenerated
+        run: |
+          if ! diff -r --exclude=README.md frontend/lib/contracts_client /tmp/regen; then
+            echo "::error::frontend/lib/contracts_client has drifted from agent-cluster-contracts IR."
+            echo "Fix path: in agent-cluster-contracts, build gen-dart-client and re-run it into frontend/lib/contracts_client/. Then commit and re-push frontend."
+            exit 1
+          fi
+          echo "contracts-drift: OK"

@@ -70,3 +70,14 @@ jobs:
             --ir-dir contracts/ir/domain \
             --root frontend \
             --exclude lib/contracts_client
+
+      - name: Build vocablint (constraint C-001 / decision 014)
+        working-directory: contracts
+        run: go build -o ../bin/vocablint ./tools/vocablint
+
+      - name: vocablint — flag Dart class redeclarations of IR aggregate/event names
+        run: |
+          ./bin/vocablint \
+            --ir-dir contracts/ir/domain \
+            --root frontend \
+            --exclude lib/contracts_client
